@@ -53,38 +53,43 @@ def main():
             raise Exception
         pass
 
-    # Determine machine to decide which header files to use
-    tmp = os.getenv("HOSTNAME")
-    if tmp:
-        if tmp.startswith("compy"):
-            machine = "compy"
-            environment_commands = (
-                "source /share/apps/E3SM/conda_envs/load_{}_e3sm_unified.sh".format(
-                    config["default"]["e3sm_unified"]
-                )
-            )
-        elif tmp.startswith("cori"):
-            machine = "cori"
-            environment_commands = "source /global/cfs/cdirs/e3sm/software/anaconda_envs/load_{}_e3sm_unified.sh".format(
-                config["default"]["e3sm_unified"]
-            )
-        elif tmp.startswith("blues"):
-            machine = "anvil"
-            environment_commands = (
-                "source /lcrc/soft/climate/e3sm-unified/load_{}_e3sm_unified.sh".format(
-                    config["default"]["e3sm_unified"]
-                )
-            )
-        elif tmp.startswith("chr"):
-            machine = "chrysalis"
-            environment_commands = (
-                "source /lcrc/soft/climate/e3sm-unified/load_{}_e3sm_unified.sh".format(
-                    config["default"]["e3sm_unified"]
-                )
-            )
-    config["default"]["machine"] = machine
     if "environment_commands" not in config["default"].keys():
+        if "E3SMU_SCRIPT" in os.environ:
+            environment_commands = "source {}".format(os.environ["E3SMU_SCRIPT"])
+        else:
+            if "CONDA_EXE" not in os.environ or "CONDA_DEFAULT_ENV" not in os.environ:
+                raise ValueError(
+                    "zppy does not seem to be running in a conda environment. "
+                    "Cannot determine environment to activate in job scripts. "
+                    "Please set environment_commands config option."
+                )
+            base_path = os.path.dirname(os.path.dirname(os.environ["CONDA_EXE"]))
+            environment_commands = (
+                "source {}/etc/profile.d/conda.sh\nconda activate {}".format(
+                    base_path, os.environ["CONDA_DEFAULT_ENV"]
+                )
+            )
+
         config["default"]["environment_commands"] = environment_commands
+
+    # Determine machine to decide which header files to use
+    hostname = os.getenv("HOSTNAME")
+    if hostname is None:
+        raise ValueError(
+            "Could not determine the hostname used to identify this machine."
+        )
+
+    if hostname.startswith("compy"):
+        machine = "compy"
+    elif hostname.startswith("cori"):
+        machine = "cori"
+    elif hostname.startswith("blues"):
+        machine = "anvil"
+    elif hostname.startswith("chr"):
+        machine = "chrysalis"
+    else:
+        raise ValueError("Hostname {} is not a machine known to zppy.".format(hostname))
+    config["default"]["machine"] = machine
 
     # climo tasks
     climo(config, scriptDir)
