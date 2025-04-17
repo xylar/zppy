@@ -275,6 +275,9 @@ extra_config="--polar_regions"
 {% else %}
 extra_config=""
 {% endif %}
+{% if customConfigFilename != "" %}
+extra_config="${extra_config} {{ customConfigFilename }}"
+{% endif %}
 
 mpas_analysis ${purge} --verbose ${extra_config} cfg/mpas_analysis_${identifier}.cfg
 if [ $? != 0 ]; then
